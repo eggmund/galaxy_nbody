@@ -2,7 +2,7 @@ mod compute;
 
 use ggez::event::{self, KeyCode, KeyMods};
 use ggez::{Context, GameResult};
-use ggez::nalgebra::Point2;
+use nalgebra::Point2;
 
 use vulkano::command_buffer::AutoCommandBufferBuilder;
 use vulkano::command_buffer::CommandBuffer;
@@ -62,7 +62,7 @@ macro_rules! starting_setup {       // The starting setup when you open the prog
 
 
 mod tools {
-    use ggez::nalgebra::Vector2;
+    use nalgebra::Vector2;
     #[inline]
     pub fn get_components(mag: f32, angle: f32) -> Vector2<f32> {
         Vector2::new(mag * angle.cos(), mag * angle.sin())
@@ -160,7 +160,7 @@ impl MainState {
     }
 }
 
-impl event::EventHandler for MainState {
+impl event::EventHandler<ggez::GameError> for MainState {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         use ggez::timer;
         const DT_UPDATE_THRESHOLD: usize = 10;  // Number of updates before dt will be updated to gpu
@@ -206,13 +206,14 @@ impl event::EventHandler for MainState {
             let bodies_data = self.vk_instance.buffers.bodies.read().unwrap();
 
             for b in bodies_data.iter() {
-                let pos = {
-                    let pos_ref: &[f32; 2] = b.pos.as_ref();
-                    Point2::new(pos_ref[0], pos_ref[1])
-                };
-                render_mesh_builder.circle(
+                let pos_ref: &[f32; 2] = b.pos.as_ref();
+                //let pos = {
+                //    let pos_ref: &[f32; 2] = b.pos.as_ref();
+                //    Point2::new(pos_ref[0], pos_ref[1])
+                //};
+                render_mesh_builder.circle::<[f32; 2]>(
                     DrawMode::fill(),
-                    pos,
+                    (*pos_ref).into(),
                     b.radius,
                     1.0,
                     [0.9, 0.9, 0.9, 1.0].into(),
@@ -226,7 +227,7 @@ impl event::EventHandler for MainState {
         let fps_text = graphics::Text::new(format!("FPS: {}", timer::fps(ctx)));
         graphics::draw(ctx, &fps_text, 
             DrawParam::new()
-                .dest(Point2::from([10.0, 10.0]))
+                .dest::<[f32; 2]>([10.0, 10.0].into())
                 .color([0.0, 1.0, 0.0, 1.0].into()
             )
         )?;
@@ -254,7 +255,7 @@ pub fn main() -> GameResult {
 
     let cb = ggez::ContextBuilder::new("super_simple", "ggez")
         .window_mode(WindowMode::default().dimensions(SCREEN_DIMS.0, SCREEN_DIMS.1));
-    let (ctx, event_loop) = &mut cb.build()?;
-    let state = &mut MainState::new(ctx)?;
+    let (mut ctx, event_loop) = cb.build()?;
+    let state = MainState::new(&mut ctx)?;
     event::run(ctx, event_loop, state)
 }
